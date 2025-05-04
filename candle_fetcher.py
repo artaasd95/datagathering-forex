@@ -110,14 +110,6 @@ def main():
     
     args = parse_args()
     
-    # Set MT5 path
-    if args.mt5_path:
-        mt5_path = os.path.normpath(args.mt5_path)
-        if not os.path.exists(mt5_path):
-            logging.critical(f"MT5 executable not found at: {mt5_path}")
-            sys.exit(1)
-        mt5.set_path(mt5_path)
-    
     # Convert timeframe string to MT5 constant
     timeframe = TIMEFRAME_MAP[args.timeframe]
     
@@ -125,16 +117,27 @@ def main():
     db_name = "mt5_data"
     collection_name = f"candles_{args.symbol}_{args.timeframe}"
     
-    # initialize MT5 connection
-    if not mt5.initialize():
+    # Check MT5 executable path exists
+    if args.mt5_path:
+        mt5_path = os.path.normpath(args.mt5_path)
+        if not os.path.exists(mt5_path):
+            logging.critical(f"MT5 executable not found at: {mt5_path}")
+            sys.exit(1)
+    
+    # Initialize MT5 connection with login credentials
+    if not mt5.initialize(
+        path=args.mt5_path,
+        login=args.account,
+        password=args.password,
+        server=args.server
+    ):
         logging.critical(f"MT5 initialize() failed: {mt5.last_error()}")
         return
     
-    # Login to MT5
-    if not mt5.login(args.account, args.password, args.server):
-        logging.critical(f"MT5 login failed: {mt5.last_error()}")
-        mt5.shutdown()
-        return
+    # Display connection info
+    logging.info(f"MT5 Package Version: {mt5.__version__}")
+    logging.info(f"Terminal Info: {mt5.terminal_info()}")
+    logging.info(f"MT5 Version: {mt5.version()}")
     
     logging.info(f"Connected to MT5: account={args.account}, server={args.server}")
     logging.info(f"Fetching {args.timeframe} candles for {args.symbol}")

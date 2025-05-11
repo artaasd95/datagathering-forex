@@ -1,87 +1,110 @@
 # MT5 Data Fetcher
 
-This package contains scripts for fetching market data (candles and ticks) from MetaTrader 5 and storing them in MongoDB.
+This project fetches tick and candle data from MetaTrader 5 and stores it in MongoDB.
 
-## Prerequisites
+## Docker Setup
 
-1. MetaTrader 5 installed
-2. Python 3.6+ with the following packages:
-   - `pytz`
-   - `MetaTrader5`
-   - `pandas_market_calendars`
-   - `pymongo`
-3. MongoDB instance running (default: localhost:27017)
-4. PowerShell (Windows)
+### Prerequisites
 
-## Files
+1. Install Docker and Docker Compose
+2. Install MetaTrader 5 on your host machine
+3. Make sure MetaTrader 5 is running and configured with your accounts
 
-- `candle_fetcher.py` - Fetches candle data for a specific symbol and timeframe
-- `tick_fetcher.py` - Fetches tick data for a specific symbol
-- `run_candle_fetcher.ps1` - PowerShell script to run candle fetcher
-- `run_tick_fetcher.ps1` - PowerShell script to run tick fetcher
-- `run_all_fetchers.ps1` - PowerShell script to run all fetcher scripts
-- `example_candle_fetcher.ps1` - Example script with predefined parameters for candle fetcher
-- `example_tick_fetcher.ps1` - Example script with predefined parameters for tick fetcher
+### Running with Docker Compose
 
-## Usage
+1. Build and start the containers:
+   ```bash
+   docker-compose up -d
+   ```
 
-### Setting Up
+2. To stop the containers:
+   ```bash
+   docker-compose down
+   ```
 
-1. Edit the example scripts (`example_candle_fetcher.ps1` and `example_tick_fetcher.ps1`) with your actual MetaTrader 5 account details:
-   - Path to MT5 executable
-   - Account number
-   - Password
-   - Server
-   - Symbol to fetch
-   - Other parameters as needed
+### Running Individual Containers
 
-### Running Individual Fetchers
+To run a new instance with different parameters:
 
-For candle data:
+1. For tick fetcher:
+   ```bash
+   docker run -d \
+     --name tick-fetcher-new \
+     --network host \
+     -e MT5_PATH="F:/path/to/your/terminal64.exe" \
+     -e ACCOUNT=your_account \
+     -e PASSWORD=your_password \
+     -e SERVER=your_server \
+     -e SYMBOL=your_symbol \
+     -e MONGO_URI=mongodb://localhost:27018/ \
+     mt5-fetcher \
+     python tick_fetcher.py \
+     --mt5_path "${MT5_PATH}" \
+     --account ${ACCOUNT} \
+     --password ${PASSWORD} \
+     --server ${SERVER} \
+     --symbol ${SYMBOL} \
+     --mongo_uri ${MONGO_URI}
+   ```
 
-```powershell
-.\run_candle_fetcher.ps1 -Timeframe "M5" -MT5Path "C:\path\to\terminal64.exe" -Account 12345678 -Password "your_password" -Server "Your-Broker-Server" -Symbol "EURUSD"
-```
+2. For candle fetcher:
+   ```bash
+   docker run -d \
+     --name candle-fetcher-new \
+     --network host \
+     -e MT5_PATH="F:/path/to/your/terminal64.exe" \
+     -e ACCOUNT=your_account \
+     -e PASSWORD=your_password \
+     -e SERVER=your_server \
+     -e SYMBOL=your_symbol \
+     -e TIMEFRAME=M1 \
+     -e MONGO_URI=mongodb://localhost:27018/ \
+     mt5-fetcher \
+     python candle_fetcher.py \
+     --mt5_path "${MT5_PATH}" \
+     --account ${ACCOUNT} \
+     --password ${PASSWORD} \
+     --server ${SERVER} \
+     --symbol ${SYMBOL} \
+     --timeframe ${TIMEFRAME} \
+     --mongo_uri ${MONGO_URI}
+   ```
 
-Optional parameters:
-- `-MongoURI` - MongoDB connection URI (default: "mongodb://localhost:27017/")
-- `-FetchInterval` - Seconds between fetches (default: 60)
-- `-CandlesPerFetch` - Number of candles per fetch (default: 1)
+## Original Python Setup
 
-For tick data:
+### Prerequisites
 
-```powershell
-.\run_tick_fetcher.ps1 -MT5Path "C:\path\to\terminal64.exe" -Account 12345678 -Password "your_password" -Server "Your-Broker-Server" -Symbol "EURUSD"
-```
+1. Python 3.9 or higher
+2. MetaTrader 5 terminal installed
+3. MongoDB installed and running
 
-Optional parameters:
-- `-MongoURI` - MongoDB connection URI (default: "mongodb://localhost:27017/")
-- `-FetchInterval` - Seconds between fetches (default: 1)
-- `-HistoryBatch` - Number of ticks per batch when fetching history (default: 500)
+### Installation
 
-### Running Both Fetchers
+1. Install required Python packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-For convenience, you can use the provided example scripts with predefined parameters:
+2. Run the tick fetcher:
+   ```bash
+   python tick_fetcher.py --mt5_path "path/to/terminal64.exe" --account YOUR_ACCOUNT --password YOUR_PASSWORD --server YOUR_SERVER --symbol SYMBOL --mongo_uri "mongodb://localhost:27018/"
+   ```
 
-```powershell
-.\example_candle_fetcher.ps1
-.\example_tick_fetcher.ps1
-```
-
-Or to run all fetcher scripts (will open multiple PowerShell windows):
-
-```powershell
-.\run_all_fetchers.ps1
-```
+3. Run the candle fetcher:
+   ```bash
+   python candle_fetcher.py --mt5_path "path/to/terminal64.exe" --account YOUR_ACCOUNT --password YOUR_PASSWORD --server YOUR_SERVER --symbol SYMBOL --timeframe TIMEFRAME --mongo_uri "mongodb://localhost:27018/"
+   ```
 
 ## Data Storage
 
-The data is stored in MongoDB with the following collection names:
-- Candle data: `candles_{symbol}_{timeframe}` (e.g., `candles_EURUSD_M5`)
-- Tick data: `ticks_{symbol}` (e.g., `ticks_EURUSD`)
+Data is stored in MongoDB with the following collections:
+- `ticks_SYMBOL`: Raw tick data
+- `candles_SYMBOL_TIMEFRAME`: Candle data for specific timeframe
 
 ## Notes
 
-- The scripts check if the market is open before fetching data
-- Each script runs continuously until interrupted (Ctrl+C)
-- Duplicate data points are automatically filtered out 
+- The fetchers run continuously and store data only when the market is open
+- Market hours: Opens Sunday 22:00 UTC, closes Friday 22:00 UTC
+- Make sure to use different MT5 terminals for different fetchers to avoid conflicts
+- The Docker containers use host networking to access the MT5 instance running on your host machine
+- Ensure your MT5 terminals are running before starting the Docker containers 

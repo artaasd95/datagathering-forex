@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  tick-fetcher:
+    build: .
+    network_mode: "host"
+    environment:
+      - MT5_PATH=F:/roboforex metatraders/RoboForex MT5 Terminal-2/terminal64.exe
+      - ACCOUNT=501146140
+      - PASSWORD=QdRd-3Eg
+      - SERVER=RoboForex-Pro
+      - SYMBOL=XAUUSD
+      - MONGO_URI=mongodb://localhost:27018/
+    command: python tick_fetcher.py --mt5_path "${MT5_PATH}" --account ${ACCOUNT} --password ${PASSWORD} --server ${SERVER} --symbol ${SYMBOL} --mongo_uri ${MONGO_URI}
+    depends_on:
+      - mongodb
+
+  candle-fetcher:
+    build: .
+    network_mode: "host"
+    environment:
+      - MT5_PATH=F:/roboforex metatraders/RoboForex MT5 Terminal-1/terminal64.exe
+      - ACCOUNT=501146137
+      - PASSWORD=1uBtX@Sn
+      - SERVER=RoboForex-Pro
+      - SYMBOL=XAUUSD
+      - TIMEFRAME=M1
+      - MONGO_URI=mongodb://localhost:27018/
+    command: python candle_fetcher.py --mt5_path "${MT5_PATH}" --account ${ACCOUNT} --password ${PASSWORD} --server ${SERVER} --symbol ${SYMBOL} --timeframe ${TIMEFRAME} --mongo_uri ${MONGO_URI}
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data: 

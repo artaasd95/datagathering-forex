@@ -95,16 +95,44 @@ To run a new instance with different parameters:
    python candle_fetcher.py --mt5_path "path/to/terminal64.exe" --account YOUR_ACCOUNT --password YOUR_PASSWORD --server YOUR_SERVER --symbol SYMBOL --timeframe TIMEFRAME --mongo_uri "mongodb://localhost:27018/"
    ```
 
+## Historical Data Fetcher
+
+The historical data fetcher allows you to retrieve data for a long date range by breaking it into smaller chunks (default is 2-day periods). This is useful for gathering extensive historical data when MetaTrader 5 has limitations on the amount of data it can return in a single request.
+
+### Running the Historical Data Fetcher
+
+```bash
+python historical_data_fetcher.py --mt5_path "path/to/terminal64.exe" --account YOUR_ACCOUNT --password YOUR_PASSWORD --server YOUR_SERVER --symbol SYMBOL --timeframe TIMEFRAME --start_date "YYYY-MM-DD" --end_date "YYYY-MM-DD" --mongo_uri "mongodb://localhost:27018/" --csv_output "path/to/output.csv" --chunk_days 2 --min_data_points 10
+```
+
+### Parameters
+
+- `--start_date`: Start date in YYYY-MM-DD format
+- `--end_date`: End date in YYYY-MM-DD format
+- `--csv_output`: (Optional) Path to CSV output file
+- `--chunk_days`: Number of days per chunk (default: 2)
+- `--min_data_points`: Minimum number of data points to consider a chunk valid (default: 10)
+
+### Example PowerShell Scripts
+
+The repository includes example PowerShell scripts to run the historical data fetcher:
+
+1. `run_historical_data_fetcher.ps1`: Basic script with configurable parameters
+2. `example_historical_data_fetcher.ps1`: Examples showing different configurations
+
 ## Data Storage
 
 Data is stored in MongoDB with the following collections:
 - `ticks_SYMBOL`: Raw tick data
 - `candles_SYMBOL_TIMEFRAME`: Candle data for specific timeframe
+- `mt5_historical_data.candles_SYMBOL_TIMEFRAME`: Historical candle data retrieved by the historical data fetcher
 
 ## Notes
 
-- The fetchers run continuously and store data only when the market is open
+- The tick and candle fetchers run continuously and store data only when the market is open
 - Market hours: Opens Sunday 22:00 UTC, closes Friday 22:00 UTC
 - Make sure to use different MT5 terminals for different fetchers to avoid conflicts
 - The Docker containers use host networking to access the MT5 instance running on your host machine
-- Ensure your MT5 terminals are running before starting the Docker containers 
+- Ensure your MT5 terminals are running before starting the Docker containers
+- The historical data fetcher creates a compound index on symbol and time to prevent duplicate entries
+- For very long date ranges, the historical data fetcher breaks the request into smaller chunks to prevent MT5 API limitations 

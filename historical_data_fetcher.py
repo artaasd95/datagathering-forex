@@ -17,10 +17,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Fetch historical data for a long timeframe by breaking it into smaller chunks')
     parser.add_argument('--timeframe', required=True, choices=['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'], 
                         help='Timeframe for candles')
-    parser.add_argument('--mt5_path', required=True, help='Path to MT5 executable')
-    parser.add_argument('--account', required=True, type=int, help='MT5 account number')
-    parser.add_argument('--password', required=True, help='MT5 password')
-    parser.add_argument('--server', required=True, help='MT5 server')
+    parser.add_argument('--mt5_path', required=False, help='Path to MT5 executable')
+    parser.add_argument('--account', required=False, type=int, help='MT5 account number')
+    parser.add_argument('--password', required=False, help='MT5 password')
+    parser.add_argument('--server', required=False, help='MT5 server')
     parser.add_argument('--symbol', required=True, help='Symbol to fetch (e.g. EURUSD)')
     parser.add_argument('--start_date', required=True, help='Start date in format YYYY-MM-DD')
     parser.add_argument('--end_date', required=True, help='End date in format YYYY-MM-DD')
@@ -69,12 +69,8 @@ def generate_date_chunks(start_date, end_date, chunk_days):
 
 def fetch_candles(symbol, timeframe, from_date, to_date):
     """Fetch candles for a specific time period"""
-    # Convert datetime objects to UTC timestamp
-    from_timestamp = int(from_date.timestamp())
-    to_timestamp = int(to_date.timestamp())
-    
-    # Fetch candles
-    candles = mt5.copy_rates_range(symbol, timeframe, from_timestamp, to_timestamp)
+    # Fetch candles using datetime objects directly
+    candles = mt5.copy_rates_range(symbol, timeframe, from_date, to_date)
     if candles is None:
         logging.error(f"Failed to fetch candles: {mt5.last_error()}")
         return []
@@ -143,7 +139,7 @@ def main():
     timeframe_str = args.timeframe
     timeframe = TIMEFRAME_MAP[timeframe_str]
     
-    # Parse dates
+    # Parse dates and ensure they are in UTC timezone
     try:
         start_date = datetime.datetime.strptime(args.start_date, "%Y-%m-%d").replace(tzinfo=UTC_TZ)
         end_date = datetime.datetime.strptime(args.end_date, "%Y-%m-%d").replace(tzinfo=UTC_TZ)
@@ -158,7 +154,7 @@ def main():
         logging.critical("Invalid date format. Use YYYY-MM-DD")
         sys.exit(1)
     
-    # Check MT5 executable path exists
+    # Check MT5 executable path exists if provided
     if args.mt5_path:
         mt5_path = os.path.normpath(args.mt5_path)
         if not os.path.exists(mt5_path):
@@ -169,13 +165,18 @@ def main():
     db_name = "mt5_historical_data"
     collection_name = f"candles_{args.symbol}_{timeframe_str}"
     
-    # Initialize MT5 connection with login credentials
-    if not mt5.initialize(
-        path=args.mt5_path,
-        login=args.account,
-        password=args.password,
-        server=args.server
-    ):
+    # Initialize MT5 connection with login credentials if provided
+    init_params = {}
+    if args.mt5_path:
+        init_params['path'] = args.mt5_path
+    if args.account:
+        init_params['login'] = args.account
+    if args.password:
+        init_params['password'] = args.password
+    if args.server:
+        init_params['server'] = args.server
+    
+    if not mt5.initialize(**init_params):
         logging.critical(f"MT5 initialize() failed: {mt5.last_error()}")
         sys.exit(1)
     
@@ -184,7 +185,12 @@ def main():
     logging.info(f"Terminal Info: {mt5.terminal_info()}")
     logging.info(f"MT5 Version: {mt5.version()}")
     
-    logging.info(f"Connected to MT5: account={args.account}, server={args.server}")
+    # Log connection details if provided
+    if args.account and args.server:
+        logging.info(f"Connected to MT5: account={args.account}, server={args.server}")
+    else:
+        logging.info("Connected to MT5 using default settings")
+    
     logging.info(f"Fetching {timeframe_str} candles for {args.symbol} from {args.start_date} to {args.end_date}")
 
     # Connect to MongoDB

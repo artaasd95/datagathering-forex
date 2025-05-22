@@ -97,7 +97,6 @@ def fetch_candles(symbol, timeframe, from_date, to_date):
         logging.info(f"Fetching {max_bars_per_request} {symbol} bars from {current_date.isoformat()}")
         
         # Fetch candles using copy_rates_from with limited count
-        # Make sure current_date is properly passed as a datetime object with UTC timezone
         candles = mt5.copy_rates_from(symbol, timeframe, current_date, max_bars_per_request)
         
         if candles is None:
@@ -120,9 +119,12 @@ def fetch_candles(symbol, timeframe, from_date, to_date):
             # Get the last timestamp and add one timeframe unit to avoid duplicates
             last_candle_time = valid_candles[-1]['time']
             last_datetime = datetime.datetime.fromtimestamp(last_candle_time, tz=UTC_TZ)
+            
+            # Update current_date to the next timeframe unit after the last candle
             current_date = last_datetime + datetime.timedelta(minutes=timeframe_minutes)
             
             logging.info(f"Added {len(valid_candles)} candles, last time: {last_datetime.isoformat()}")
+            logging.info(f"Next fetch will start from: {current_date.isoformat()}")
             
             # Debug info for the first few and last few candles
             if len(valid_candles) > 0:
